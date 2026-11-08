@@ -174,7 +174,7 @@ fn draw_footer(app: &App, f: &mut Frame, area: Rect) {
             ("Enter", "resolve"),
             ("Tab", "list"),
             ("F1/F2", "tabs"),
-            ("q/Esc", "quit"),
+            ("q", "quit"),
         ]
     } else if app.tab == Tab::Queue {
         &[

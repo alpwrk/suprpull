@@ -146,10 +146,6 @@ impl App {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
 
-        if ctrl && key.code == KeyCode::Char('c') {
-            self.should_quit = true;
-            return None;
-        }
         if self.popup.is_some() {
             return self.popup_key(key);
         }
@@ -207,14 +203,8 @@ impl App {
                 self.status = None;
                 return Some(Effect::Action(UiAction::Resolve(url)));
             }
-            KeyCode::Esc => {
-                if self.input.is_empty() {
-                    self.should_quit = true;
-                } else {
-                    self.input.clear();
-                }
-            }
-            // Links are pasted, so a bare `q` on an empty input means "quit";
+            KeyCode::Esc => self.input.clear(),
+            // `q` is the only quit key. Links are pasted, so a bare `q` on an empty input means "quit";
             // once something is typed, `q` is just a character.
             KeyCode::Char('q') if !ctrl && !alt && self.input.is_empty() => {
                 self.should_quit = true;
@@ -602,7 +592,7 @@ pub(crate) mod tests {
         press(&mut app, KeyCode::Esc);
         assert!(!app.should_quit && app.input.is_empty());
         press(&mut app, KeyCode::Esc);
-        assert!(app.should_quit);
+        assert!(!app.should_quit, "Esc never quits");
 
         let mut app = App::new(cfg(), vec![]);
         press(&mut app, KeyCode::Tab);
@@ -619,9 +609,8 @@ pub(crate) mod tests {
         assert_eq!(app.input.value(), "aq");
 
         let mut app = App::new(cfg(), vec![]);
-        type_str(&mut app, "abc");
         app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-        assert!(app.should_quit);
+        assert!(!app.should_quit, "Ctrl-C does not quit");
     }
 
     #[test]

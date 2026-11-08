@@ -54,7 +54,8 @@ Paste a link and press Enter, then choose a format in the popup.
 | `d` | remove job |
 | `r` | retry failed job |
 | `o` | open folder |
-| `q` (empty input or list) / `Esc` / `Ctrl-C` | quit |
+| `q` (empty input or list) | quit |
+| `Esc` | clear input / close popup |
 
 ## Files
 
