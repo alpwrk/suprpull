@@ -224,6 +224,78 @@ async fn run_ffmpeg(
 }
 
 /// Run ffmpeg, report progress, return the final file path. Writes to a `.part` temp file first.
+/// Largest accepted artwork file.
+const MAX_COVER_BYTES: usize = 20 * 1024 * 1024;
+
+static COVER_HTTP: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .user_agent(crate::sc::client_id::USER_AGENT)
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .unwrap_or_default()
+});
+
+/// File extension for supported image data, detected from its magic bytes.
+fn image_extension(data: &[u8]) -> Option<&'static str> {
+    match data {
+        [0xFF, 0xD8, 0xFF, ..] => Some("jpg"),
+        [0x89, b'P', b'N', b'G', ..] => Some("png"),
+        [
+            b'R',
+            b'I',
+            b'F',
+            b'F',
+            _,
+            _,
+            _,
+            _,
+            b'W',
+            b'E',
+            b'B',
+            b'P',
+            ..,
+        ] => Some("webp"),
+        [
+            _,
+            _,
+            _,
+            _,
+            b'f',
+            b't',
+            b'y',
+            b'p',
+            b'a',
+            b'v',
+            b'i',
+            b'f',
+            ..,
+        ] => Some("avif"),
+        _ => None,
+    }
+}
+
+/// Download artwork next to `part` (`<part>.cover.<ext>`). `None` if it is missing,
+/// too large or not an image; the download then simply goes on without a cover.
+async fn fetch_cover(url: &str, part: &Path) -> Option<PathBuf> {
+    let resp = COVER_HTTP
+        .get(url)
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    let data = resp.bytes().await.ok()?;
+    if data.len() > MAX_COVER_BYTES {
+        return None;
+    }
+    let ext = image_extension(&data)?;
+    let mut name = part.as_os_str().to_os_string();
+    name.push(format!(".cover.{ext}"));
+    let path = PathBuf::from(name);
+    tokio::fs::write(&path, &data).await.ok()?;
+    Some(path)
+}
+
 pub async fn run(
     spec: &DownloadSpec,
     ffmpeg: &str,
@@ -240,9 +312,17 @@ pub async fn run(
     let part = part_path(&tentative);
 
     let mut spec_now = spec.clone();
-    if ext == "opus" {
-        spec_now.cover_url = None;
-    }
+    // Fetch remote artwork ourselves: ffmpeg's image2 demuxer cannot read images from
+    // servers that omit Content-Length (SoundCloud's CDN) and sees them as 0x0.
+    let mut cover_tmp: Option<PathBuf> = None;
+    spec_now.cover_url = match spec.cover_url.as_deref() {
+        _ if ext == "opus" => None,
+        Some(url) if is_network(url) => {
+            cover_tmp = fetch_cover(url, &part).await;
+            cover_tmp.as_ref().map(|p| p.to_string_lossy().into_owned())
+        }
+        other => other.map(str::to_string),
+    };
     let result = loop {
         let args = build_ffmpeg_args(&spec_now, &part);
         match run_ffmpeg(ffmpeg, &args, spec_now.duration_ms, &progress).await {
@@ -254,6 +334,9 @@ pub async fn run(
             Err(e) => break Err(e),
         }
     };
+    if let Some(tmp) = cover_tmp {
+        let _ = tokio::fs::remove_file(tmp).await;
+    }
     if let Err(e) = result {
         let _ = tokio::fs::remove_file(&part).await;
         return Err(e);
@@ -407,6 +490,64 @@ mod tests {
         assert_eq!(unique_path(&stem, "mp3"), dir.join("A - B (1).mp3"));
         std::fs::write(dir.join("A - B (1).mp3"), b"").unwrap();
         assert_eq!(unique_path(&stem, "mp3"), dir.join("A - B (2).mp3"));
+    }
+
+    #[test]
+    fn image_magic() {
+        assert_eq!(image_extension(&[0xFF, 0xD8, 0xFF, 0xE0, 0]), Some("jpg"));
+        assert_eq!(image_extension(b"\x89PNG\r\n\x1a\n"), Some("png"));
+        assert_eq!(image_extension(b"RIFF\0\0\0\0WEBPVP8 "), Some("webp"));
+        assert_eq!(image_extension(b"\0\0\0\x1cftypavif"), Some("avif"));
+        assert_eq!(image_extension(b"<html>not found</html>"), None);
+        assert_eq!(image_extension(b""), None);
+    }
+
+    /// SoundCloud's image CDN sends no Content-Length, which made ffmpeg read the
+    /// artwork as 0x0. Needs network + ffmpeg: `cargo test -- --ignored cdn_cover`.
+    #[tokio::test]
+    #[ignore = "needs network and ffmpeg"]
+    async fn cdn_cover_is_embedded() {
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/test-tmp/cdn_cover");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("in.m4a");
+        let st = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y"])
+            .args(["-f", "lavfi", "-i", "sine=d=1", "-c:a", "aac"])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let spec = DownloadSpec {
+            input_url: input.to_string_lossy().into_owned(),
+            codec: Codec::Aac,
+            convert_mp3: false,
+            cover_url: Some(
+                "https://i1.sndcdn.com/artworks-2dsGsvkPytF773PW-vzenGA-t500x500.jpg".into(),
+            ),
+            tags: vec![("title".into(), "t".into())],
+            duration_ms: Some(1000),
+            out_stem: dir.join("out"),
+        };
+        let p = run(&spec, "ffmpeg", |_| {}).await.unwrap();
+        let probe = std::process::Command::new("ffprobe")
+            .args(["-v", "error", "-select_streams", "v", "-show_entries"])
+            .args([
+                "stream=width,height:stream_disposition=attached_pic",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&p)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&probe.stdout).trim(), "500,500,1");
+        // The temporary cover file is cleaned up.
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".cover."))
+            .collect();
+        assert!(leftovers.is_empty());
     }
 
     #[test]
