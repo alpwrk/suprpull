@@ -113,6 +113,8 @@ pub struct Job {
     pub album: Option<String>,
     /// Position inside the set (1-based).
     pub track_no: Option<u32>,
+    /// Number of tracks in the set.
+    pub track_total: Option<u32>,
     pub source_url: String,
     pub status: JobStatus,
 }
@@ -166,6 +168,10 @@ pub struct Config {
     /// Max parallel downloads.
     pub concurrency: usize,
     pub ffmpeg_path: String,
+    /// Look up release metadata (album, date, track number, cover) on MusicBrainz.
+    pub metadata_lookup: bool,
+    /// Contact (URL or e-mail) sent in the MusicBrainz User-Agent, as their API etiquette asks.
+    pub musicbrainz_contact: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 mod config;
 mod download;
 mod history;
+mod metadata;
 mod queue;
 mod sc;
 mod types;

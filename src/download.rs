@@ -19,10 +19,8 @@ pub struct DownloadSpec {
     pub convert_mp3: bool,
     /// Embedded as attached picture (skipped for opus).
     pub cover_url: Option<String>,
-    pub title: String,
-    pub artist: String,
-    pub album: Option<String>,
-    pub track_no: Option<u32>,
+    /// `-metadata key=value` pairs, see `metadata::TrackMeta::ffmpeg_tags`.
+    pub tags: Vec<(String, String)>,
     pub duration_ms: Option<u64>,
     /// Without extension.
     pub out_stem: PathBuf,
@@ -102,15 +100,11 @@ pub fn build_ffmpeg_args(spec: &DownloadSpec, out_path: &Path) -> Vec<String> {
     }
 
     let meta = |key: &str, val: &str| ["-metadata".to_string(), format!("{key}={val}")];
-    a.extend(meta("title", &spec.title));
-    a.extend(meta("artist", &spec.artist));
-    if let Some(album) = &spec.album {
-        a.extend(meta("album", album));
+    // Drop tags inherited from the source stream, then write ours.
+    push(&["-map_metadata", "-1"]);
+    for (key, val) in &spec.tags {
+        a.extend(meta(key, val));
     }
-    if let Some(n) = spec.track_no {
-        a.extend(meta("track", &n.to_string()));
-    }
-    a.extend(meta("comment", ""));
 
     a.extend(
         ["-progress", "pipe:1", "-nostats", "-f", muxer_for(ext)]
@@ -304,10 +298,12 @@ mod tests {
             codec,
             convert_mp3: convert,
             cover_url: cover.then(|| "https://i1.sndcdn.com/artworks-x-t500x500.jpg".into()),
-            title: "My / Title".into(),
-            artist: "Artist".into(),
-            album: Some("Set".into()),
-            track_no: Some(4),
+            tags: vec![
+                ("title".into(), "My / Title".into()),
+                ("artist".into(), "Artist".into()),
+                ("album".into(), "Set".into()),
+                ("track".into(), "4".into()),
+            ],
             duration_ms: Some(10_000),
             out_stem: PathBuf::from("/music/x"),
         }
@@ -354,6 +350,7 @@ mod tests {
         assert!(has_seq(&a, &["-metadata", "artist=Artist"]));
         assert!(has_seq(&a, &["-metadata", "album=Set"]));
         assert!(has_seq(&a, &["-metadata", "track=4"]));
+        assert!(has_seq(&a, &["-map_metadata", "-1"]));
         assert!(has_seq(
             &a,
             &["-progress", "pipe:1", "-nostats", "-f", "ipod"]
@@ -383,8 +380,7 @@ mod tests {
     #[test]
     fn args_opus_skips_cover() {
         let mut s = spec(Codec::Opus, false, true);
-        s.album = None;
-        s.track_no = None;
+        s.tags.retain(|(k, _)| k != "album" && k != "track");
         s.input_url = "/tmp/local.opus".into();
         let a = build_ffmpeg_args(&s, Path::new("o.opus.part"));
         assert_eq!(a.iter().filter(|x| *x == "-i").count(), 1);
@@ -394,7 +390,10 @@ mod tests {
             !a.iter()
                 .any(|x| x.starts_with("album=") || x.starts_with("track="))
         );
-        assert!(has_seq(&a, &["-c:a", "copy", "-metadata"]));
+        assert!(has_seq(
+            &a,
+            &["-c:a", "copy", "-map_metadata", "-1", "-metadata"]
+        ));
         assert!(has_seq(&a, &["-f", "opus"]));
     }
 
@@ -469,10 +468,14 @@ mod tests {
             codec: Codec::Aac,
             convert_mp3: false,
             cover_url: Some(cover.to_string_lossy().into_owned()),
-            title: "Title".into(),
-            artist: "Artist".into(),
-            album: Some("Album".into()),
-            track_no: Some(1),
+            tags: vec![
+                ("title".into(), "Title".into()),
+                ("artist".into(), "Artist".into()),
+                ("album".into(), "Album".into()),
+                ("track".into(), "1/9".into()),
+                ("date".into(), "2003-06-02".into()),
+                ("genre".into(), "Electronic".into()),
+            ],
             duration_ms: Some(3000),
             out_stem: dir.join("out/Artist - Title"),
         };

@@ -20,6 +20,10 @@ const HEADER: &str = "\
 #   convert_mp3 - best stream re-encoded to MP3 (VBR V0)
 # concurrency:    parallel downloads (1-8)
 # ffmpeg_path:    ffmpeg binary (name in $PATH or absolute path)
+# metadata_lookup: look up album, date, track number and cover on MusicBrainz
+#                  (only applied when the match is certain)
+# musicbrainz_contact: optional URL or e-mail for the MusicBrainz User-Agent,
+#                  e.g. musicbrainz_contact = \"https://example.com/me\"
 
 ";
 
@@ -38,6 +42,8 @@ impl Default for Config {
             default_format: FormatChoice::Best,
             concurrency: 3,
             ffmpeg_path: "ffmpeg".to_string(),
+            metadata_lookup: true,
+            musicbrainz_contact: None,
         }
     }
 }
@@ -55,6 +61,8 @@ struct PartialConfig {
     default_format: Option<FormatChoice>,
     concurrency: Option<usize>,
     ffmpeg_path: Option<String>,
+    metadata_lookup: Option<bool>,
+    musicbrainz_contact: Option<String>,
 }
 
 impl PartialConfig {
@@ -64,6 +72,11 @@ impl PartialConfig {
             default_format: self.default_format.unwrap_or(d.default_format),
             concurrency: self.concurrency.unwrap_or(d.concurrency),
             ffmpeg_path: self.ffmpeg_path.unwrap_or(d.ffmpeg_path),
+            metadata_lookup: self.metadata_lookup.unwrap_or(d.metadata_lookup),
+            musicbrainz_contact: self
+                .musicbrainz_contact
+                .filter(|c| !c.trim().is_empty())
+                .or(d.musicbrainz_contact),
         }
     }
 }

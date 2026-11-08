@@ -10,6 +10,7 @@ use tokio::task::{AbortHandle, JoinHandle};
 
 use crate::download::{self, DownloadSpec};
 use crate::history::History;
+use crate::metadata::{MusicBrainz, SetPosition, TrackMeta};
 use crate::sc::api::ScClient;
 use crate::types::{
     Config, FormatChoice, HistoryEntry, Job, JobId, JobStatus, QueueCmd, QueueEvent, ResolvedItem,
@@ -80,6 +81,7 @@ pub fn jobs_from_resolved(
                 track: track.clone(),
                 format,
                 out_stem,
+                track_total: track_no.map(|_| item.tracks.len() as u32),
                 album,
                 track_no,
                 source_url: track
@@ -108,43 +110,63 @@ pub fn spawn(
 ) -> JoinHandle<()> {
     let ffmpeg: Arc<str> = cfg.ffmpeg_path.clone().into();
     let history = Arc::new(history);
+    // A broken MusicBrainz client only disables the lookup, never the download.
+    let mb: Option<Arc<MusicBrainz>> = cfg
+        .metadata_lookup
+        .then(|| MusicBrainz::new(cfg.musicbrainz_contact.as_deref()).ok())
+        .flatten()
+        .map(Arc::new);
     let runner: Runner = Arc::new(move |job, progress| {
         let sc = sc.clone();
         let ffmpeg = ffmpeg.clone();
         let history = history.clone();
-        Box::pin(async move { run_job(&sc, &ffmpeg, &history, job, progress).await })
+        let mb = mb.clone();
+        Box::pin(async move { run_job(&sc, mb.as_deref(), &ffmpeg, &history, job, progress).await })
     });
     spawn_with_runner(cfg.concurrency, runner, cmd_rx, ev_tx)
 }
 
-/// The real job: fetch the stream URL, run ffmpeg, append to history.
+/// The real job: build metadata (SoundCloud + MusicBrainz), fetch the stream URL,
+/// run ffmpeg, append to history.
 async fn run_job(
     sc: &ScClient,
+    mb: Option<&MusicBrainz>,
     ffmpeg: &str,
     history: &History,
     job: Job,
     progress: ProgressFn,
 ) -> Result<HistoryEntry> {
+    let set = match (&job.album, job.track_no, job.track_total) {
+        (Some(title), Some(number), Some(total)) => Some(SetPosition {
+            title,
+            number,
+            total,
+        }),
+        _ => None,
+    };
+    let mut meta = TrackMeta::from_soundcloud(&job.track, set);
+    if let Some(mb) = mb {
+        // Done before requesting the stream URL, which is signed and short-lived.
+        meta = mb.enrich(meta, &job.track, set.is_some()).await.0;
+    }
+
     let stream = sc.stream_url(&job.track, job.format).await?;
     let convert_mp3 = job.format == FormatChoice::ConvertMp3;
+    let ext = download::output_extension(stream.codec, convert_mp3);
     let spec = DownloadSpec {
         input_url: stream.url,
         codec: stream.codec,
         convert_mp3,
-        cover_url: crate::sc::api::cover_url(&job.track),
-        title: job.track.title_or_default().to_string(),
-        artist: job.track.artist_or_default().to_string(),
-        album: job.album.clone(),
-        track_no: job.track_no,
+        cover_url: meta.cover_url.clone(),
+        tags: meta.ffmpeg_tags(ext),
         duration_ms: job.track.duration,
         out_stem: job.out_stem.clone(),
     };
     let path = download::run(&spec, ffmpeg, move |p| progress(p)).await?;
-    let ext = download::output_extension(stream.codec, convert_mp3);
     let entry = HistoryEntry {
         time: chrono::Utc::now(),
-        title: spec.title,
-        artist: spec.artist,
+        title: meta.title,
+        artist: meta.artist,
         path,
         source_url: job.source_url,
         format: if ext == "m4a" { "aac" } else { ext }.to_string(),
@@ -341,6 +363,11 @@ mod tests {
             permalink_url: Some(format!("https://soundcloud.com/a/{id}")),
             track_authorization: None,
             media: None,
+            genre: None,
+            release_date: None,
+            created_at: None,
+            label_name: None,
+            publisher_metadata: None,
         }
     }
 
@@ -362,6 +389,8 @@ mod tests {
             default_format: FormatChoice::Best,
             concurrency: 2,
             ffmpeg_path: "ffmpeg".into(),
+            metadata_lookup: false,
+            musicbrainz_contact: None,
         }
     }
 
@@ -577,7 +606,9 @@ mod tests {
             }
         };
         // Retry re-announces the job (UI resets the row), then starts it.
-        assert!(matches!(next_non_progress().await, QueueEvent::Added(j) if j.id == 2 && j.status == JobStatus::Queued));
+        assert!(
+            matches!(next_non_progress().await, QueueEvent::Added(j) if j.id == 2 && j.status == JobStatus::Queued)
+        );
         assert_eq!(started(next_non_progress().await), 2);
         // Throttled progress: 0.5 is sent, 0.501 is dropped.
         tokio::time::sleep(Duration::from_millis(50)).await;

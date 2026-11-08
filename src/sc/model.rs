@@ -28,6 +28,28 @@ pub struct Track {
     pub permalink_url: Option<String>,
     pub track_authorization: Option<String>,
     pub media: Option<Media>,
+    pub genre: Option<String>,
+    /// ISO timestamp set by the uploader (often null).
+    pub release_date: Option<String>,
+    /// ISO timestamp of the upload.
+    pub created_at: Option<String>,
+    pub label_name: Option<String>,
+    /// Distributor-provided metadata; present on many label releases.
+    pub publisher_metadata: Option<PublisherMetadata>,
+}
+
+/// `publisher_metadata` of a track. All fields are optional and often null or empty.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct PublisherMetadata {
+    pub artist: Option<String>,
+    pub album_title: Option<String>,
+    pub release_title: Option<String>,
+    pub isrc: Option<String>,
+    pub writer_composer: Option<String>,
+    pub publisher: Option<String>,
+    /// e.g. "℗ 2024 Some Label"
+    pub p_line_for_display: Option<String>,
+    pub c_line_for_display: Option<String>,
 }
 
 impl Track {

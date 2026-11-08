@@ -460,6 +460,8 @@ pub(crate) mod tests {
             default_format: FormatChoice::Opus,
             concurrency: 2,
             ffmpeg_path: "ffmpeg".into(),
+            metadata_lookup: false,
+            musicbrainz_contact: None,
         }
     }
 
@@ -480,6 +482,7 @@ pub(crate) mod tests {
             out_stem: PathBuf::from(format!("/music/Set/{id:02} - {title}")),
             album: Some("Set".into()),
             track_no: Some(id as u32),
+            track_total: Some(10),
             source_url: "https://soundcloud.com/a/sets/s".into(),
             status: JobStatus::Queued,
         }
