@@ -136,8 +136,9 @@ impl ScClient {
                 if track.is_stub() {
                     bail!("track has no stream information");
                 }
-                check_playable(&track)
-                    .map_err(|e| anyhow!("cannot download \"{}\": {e}", track.title_or_default()))?;
+                check_playable(&track).map_err(|e| {
+                    anyhow!("cannot download \"{}\": {e}", track.title_or_default())
+                })?;
                 Ok(ResolvedItem {
                     source_url: normalized,
                     title: track.title_or_default().to_string(),
@@ -150,11 +151,19 @@ impl ScClient {
             }
             Resolved::Playlist(pl) => {
                 let pl = *pl;
-                let stub_ids: Vec<u64> =
-                    pl.tracks.iter().filter(|t| t.is_stub()).map(|t| t.id).collect();
+                let stub_ids: Vec<u64> = pl
+                    .tracks
+                    .iter()
+                    .filter(|t| t.is_stub())
+                    .map(|t| t.id)
+                    .collect();
                 let mut fetched = Vec::new();
                 for chunk in stub_ids.chunks(HYDRATE_CHUNK) {
-                    let ids = chunk.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+                    let ids = chunk
+                        .iter()
+                        .map(u64::to_string)
+                        .collect::<Vec<_>>()
+                        .join(",");
                     let mut part: Vec<Track> = self
                         .get_json(&format!("{API_BASE}/tracks"), &[("ids", &ids)])
                         .await
@@ -162,9 +171,15 @@ impl ScClient {
                     fetched.append(&mut part);
                 }
                 let (tracks, skipped) = hydrate_and_split(pl.tracks, fetched);
-                let set_title = pl.title.clone().unwrap_or_else(|| "Unknown set".to_string());
+                let set_title = pl
+                    .title
+                    .clone()
+                    .unwrap_or_else(|| "Unknown set".to_string());
                 if tracks.is_empty() {
-                    bail!("no downloadable tracks in \"{set_title}\" ({} skipped)", skipped.len());
+                    bail!(
+                        "no downloadable tracks in \"{set_title}\" ({} skipped)",
+                        skipped.len()
+                    );
                 }
                 let artist = pl
                     .user
@@ -188,7 +203,8 @@ impl ScClient {
     /// Pick a transcoding for `choice` and fetch its signed stream URL.
     pub async fn stream_url(&self, track: &Track, choice: FormatChoice) -> Result<StreamInfo> {
         check_playable(track)?;
-        let tc = pick_transcoding(track, choice).ok_or_else(|| anyhow!("no downloadable stream"))?;
+        let tc =
+            pick_transcoding(track, choice).ok_or_else(|| anyhow!("no downloadable stream"))?;
         let codec = Codec::from_mime(&tc.format.mime_type)
             .ok_or_else(|| anyhow!("unknown stream codec {}", tc.format.mime_type))?;
         let mut query: Vec<(&str, &str)> = Vec::new();
@@ -401,8 +417,10 @@ pub fn format_options(tracks: &[Track]) -> Vec<FormatOption> {
 
     // One entry per available codec.
     for codec in CODEC_RANK {
-        let found: Vec<&Transcoding> =
-            tracks.iter().filter_map(|t| best_of_codec(t, codec)).collect();
+        let found: Vec<&Transcoding> = tracks
+            .iter()
+            .filter_map(|t| best_of_codec(t, codec))
+            .collect();
         let Some(first) = found.first() else {
             continue;
         };
@@ -465,10 +483,16 @@ mod tests {
     #[test]
     fn normalize() {
         let cases = [
-            ("  https://soundcloud.com/a/b  ", "https://soundcloud.com/a/b"),
+            (
+                "  https://soundcloud.com/a/b  ",
+                "https://soundcloud.com/a/b",
+            ),
             ("soundcloud.com/a/b", "https://soundcloud.com/a/b"),
             ("https://m.soundcloud.com/a/b", "https://soundcloud.com/a/b"),
-            ("http://www.soundcloud.com/a/b/", "https://soundcloud.com/a/b"),
+            (
+                "http://www.soundcloud.com/a/b/",
+                "https://soundcloud.com/a/b",
+            ),
             (
                 "https://soundcloud.com/a/b?si=123&utm_source=clipboard#t=1:00",
                 "https://soundcloud.com/a/b",
@@ -481,8 +505,14 @@ mod tests {
                 "https://soundcloud.com/a/b/s-AbCdE?si=x",
                 "https://soundcloud.com/a/b/s-AbCdE",
             ),
-            ("https://on.soundcloud.com/XyZ12", "https://on.soundcloud.com/XyZ12"),
-            ("https://Soundcloud.COM/a/sets/c", "https://soundcloud.com/a/sets/c"),
+            (
+                "https://on.soundcloud.com/XyZ12",
+                "https://on.soundcloud.com/XyZ12",
+            ),
+            (
+                "https://Soundcloud.COM/a/sets/c",
+                "https://soundcloud.com/a/sets/c",
+            ),
             ("https://example.com/x", "https://example.com/x"),
         ];
         for (input, want) in cases {
@@ -542,7 +572,10 @@ mod tests {
             .transcodings
             .retain(|x| x.format.protocol.contains("encrypted"));
         assert!(pick_transcoding(&t, FormatChoice::Best).is_none());
-        assert_eq!(check_playable(&t).unwrap_err().to_string(), "no downloadable stream");
+        assert_eq!(
+            check_playable(&t).unwrap_err().to_string(),
+            "no downloadable stream"
+        );
     }
 
     #[test]
@@ -552,7 +585,10 @@ mod tests {
         hq.preset = "aac_256k".into();
         hq.quality = "hq".into();
         t.media.as_mut().unwrap().transcodings.push(hq);
-        assert_eq!(pick_transcoding(&t, FormatChoice::Best).unwrap().preset, "aac_256k");
+        assert_eq!(
+            pick_transcoding(&t, FormatChoice::Best).unwrap().preset,
+            "aac_256k"
+        );
     }
 
     #[test]
@@ -581,7 +617,10 @@ mod tests {
         // All snipped but policy not SNIP.
         let mut t = track(SNIP);
         t.policy = Some("ALLOW".into());
-        assert_eq!(check_playable(&t).unwrap_err().to_string(), "preview only (Go+ track)");
+        assert_eq!(
+            check_playable(&t).unwrap_err().to_string(),
+            "preview only (Go+ track)"
+        );
     }
 
     #[test]
@@ -628,10 +667,16 @@ mod tests {
         assert_eq!(titles, vec!["Night Drive", "Second Song", "Third Song"]);
         assert_eq!(
             skipped,
-            vec![("Hit Single".to_string(), "preview only (Go+ track)".to_string())]
+            vec![(
+                "Hit Single".to_string(),
+                "preview only (Go+ track)".to_string()
+            )]
         );
 
-        let labels: Vec<_> = format_options(&tracks).into_iter().map(|o| o.label).collect();
+        let labels: Vec<_> = format_options(&tracks)
+            .into_iter()
+            .map(|o| o.label)
+            .collect();
         assert_eq!(
             labels,
             vec![
@@ -650,7 +695,10 @@ mod tests {
         let (tracks, skipped) = hydrate_and_split(pl.tracks, Vec::new());
         assert_eq!(tracks.len(), 2);
         assert_eq!(skipped.len(), 2);
-        assert_eq!(skipped[0], ("Track 1700000005".to_string(), "unavailable".to_string()));
+        assert_eq!(
+            skipped[0],
+            ("Track 1700000005".to_string(), "unavailable".to_string())
+        );
     }
 
     #[test]
@@ -679,7 +727,10 @@ mod tests {
 
     #[test]
     fn host_check() {
-        assert_eq!(host_of("https://soundcloud.com/a").unwrap(), "soundcloud.com");
+        assert_eq!(
+            host_of("https://soundcloud.com/a").unwrap(),
+            "soundcloud.com"
+        );
         assert!(host_of("not a url").is_err());
     }
 }

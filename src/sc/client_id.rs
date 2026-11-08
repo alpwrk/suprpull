@@ -33,8 +33,7 @@ struct CachedId {
 }
 
 fn cache_path() -> Option<PathBuf> {
-    directories::ProjectDirs::from("", "", "suprpull")
-        .map(|d| d.cache_dir().join("client_id.json"))
+    directories::ProjectDirs::from("", "", "suprpull").map(|d| d.cache_dir().join("client_id.json"))
 }
 
 async fn read_cache() -> Option<CachedId> {
@@ -82,7 +81,9 @@ pub async fn get_client_id(http: &reqwest::Client, force_refresh: bool) -> Resul
 
     let scripts = extract_script_urls(&html);
     if scripts.is_empty() {
-        return Err(anyhow!("no script bundles found on the soundcloud.com homepage"));
+        return Err(anyhow!(
+            "no script bundles found on the soundcloud.com homepage"
+        ));
     }
     for url in scripts.iter().rev() {
         let Ok(js) = fetch_text(http, url).await else {
@@ -98,7 +99,9 @@ pub async fn get_client_id(http: &reqwest::Client, force_refresh: bool) -> Resul
             return Ok(id);
         }
     }
-    Err(anyhow!("could not find a client_id in soundcloud.com's script bundles"))
+    Err(anyhow!(
+        "could not find a client_id in soundcloud.com's script bundles"
+    ))
 }
 
 /// All `https://a-v2.sndcdn.com/assets/*.js` script URLs in page order.
@@ -158,7 +161,8 @@ mod tests {
 
     #[test]
     fn client_id_object_literal() {
-        let js = r#"e.exports={env:"production",client_id:"39AVoiZVrdvJEMFLH8T0c5WGshQaAPRJ",api:"x"}"#;
+        let js =
+            r#"e.exports={env:"production",client_id:"39AVoiZVrdvJEMFLH8T0c5WGshQaAPRJ",api:"x"}"#;
         assert_eq!(
             extract_client_id(js).as_deref(),
             Some("39AVoiZVrdvJEMFLH8T0c5WGshQaAPRJ")
