@@ -208,6 +208,9 @@ impl Scheduler {
                     && matches!(job.status, JobStatus::Failed(_))
                 {
                     job.status = JobStatus::Queued;
+                    // Re-announce so the UI resets the row to "queued" right away.
+                    let job = job.clone();
+                    self.emit(QueueEvent::Added(job));
                     self.pending.push_back(id);
                 }
             }
@@ -567,13 +570,15 @@ mod tests {
         cmd_tx.send(QueueCmd::Retry(4)).unwrap(); // running -> ignored
         cmd_tx.send(QueueCmd::Retry(2)).unwrap();
         let mut prog2 = Vec::new();
-        let ev = loop {
+        let mut next_non_progress = async || loop {
             match ev_rx.recv().await.unwrap() {
                 QueueEvent::Progress(id, p) => prog2.push((id, p)),
                 ev => break ev,
             }
         };
-        assert_eq!(started(ev), 2);
+        // Retry re-announces the job (UI resets the row), then starts it.
+        assert!(matches!(next_non_progress().await, QueueEvent::Added(j) if j.id == 2 && j.status == JobStatus::Queued));
+        assert_eq!(started(next_non_progress().await), 2);
         // Throttled progress: 0.5 is sent, 0.501 is dropped.
         tokio::time::sleep(Duration::from_millis(50)).await;
         while let Ok(QueueEvent::Progress(id, p)) = ev_rx.try_recv() {

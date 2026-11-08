@@ -23,7 +23,6 @@ pub struct StreamInfo {
     /// Signed CDN URL (direct mp3 or .m3u8 playlist).
     pub url: String,
     pub codec: Codec,
-    pub is_hls: bool,
 }
 
 pub struct ScClient {
@@ -200,10 +199,10 @@ impl ScClient {
             .get_json(&tc.url, &query)
             .await
             .context("could not get stream URL")?;
+        // ffmpeg handles HLS playlists and progressive files alike.
         Ok(StreamInfo {
             url: resp.url,
             codec,
-            is_hls: tc.format.protocol == "hls",
         })
     }
 }
@@ -251,8 +250,9 @@ fn hydrate_and_split(
 
 /// m.soundcloud.com -> soundcloud.com, strip query params except secret tokens, trim.
 ///
-/// Secret tokens of private links live in the path (`/s-XXXX`), so the whole query
-/// string and fragment are dropped. Non-URL input is returned trimmed.
+/// Secret tokens of private links usually live in the path (`/s-XXXX`); a
+/// `secret_token` query parameter is kept as well. Everything else in the query
+/// string and the fragment is dropped. Non-URL input is returned trimmed.
 pub fn normalize_url(url: &str) -> String {
     let trimmed = url.trim();
     let with_scheme = if trimmed.contains("://") {
@@ -272,7 +272,13 @@ pub fn normalize_url(url: &str) -> String {
         h => h,
     };
     let path = parsed.path().trim_end_matches('/');
-    format!("https://{host}{path}")
+    match parsed
+        .query_pairs()
+        .find(|(k, v)| k == "secret_token" && !v.is_empty())
+    {
+        Some((_, token)) => format!("https://{host}{path}?secret_token={token}"),
+        None => format!("https://{host}{path}"),
+    }
 }
 
 /// Err with a human readable reason if the track is not downloadable (BLOCK / SNIP / no usable stream).
@@ -466,6 +472,10 @@ mod tests {
             (
                 "https://soundcloud.com/a/b?si=123&utm_source=clipboard#t=1:00",
                 "https://soundcloud.com/a/b",
+            ),
+            (
+                "https://soundcloud.com/a/b?si=1&secret_token=s-AbC12",
+                "https://soundcloud.com/a/b?secret_token=s-AbC12",
             ),
             (
                 "https://soundcloud.com/a/b/s-AbCdE?si=x",

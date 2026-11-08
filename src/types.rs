@@ -129,6 +129,7 @@ pub enum QueueCmd {
 
 /// Events emitted by the queue task.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // `Added` is rare; boxing would only add noise
 pub enum QueueEvent {
     Added(Job),
     Started(JobId),
@@ -152,6 +153,7 @@ pub enum UiAction {
 
 /// Messages delivered to the UI.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // see QueueEvent
 pub enum UiMsg {
     Queue(QueueEvent),
     Resolved(Result<ResolvedItem, String>),
