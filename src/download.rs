@@ -1,10 +1,11 @@
 //! Runs ffmpeg to fetch a stream (HLS or progressive) into a tagged audio file.
 
-use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::LazyLock;
 
 use anyhow::{Context, Result, bail};
+use regex::Regex;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::Command;
 
@@ -80,8 +81,13 @@ pub fn build_ffmpeg_args(spec: &DownloadSpec, out_path: &Path) -> Vec<String> {
         push(&[
             "-map",
             "1:v:0",
+            // Re-encode instead of copy: the containers reject WebP/AVIF artwork
+            // ("codec not currently supported") and copied images may lack
+            // dimensions ("dimensions not set"). Decoding always yields a valid JPEG.
             "-c:v",
-            "copy",
+            "mjpeg",
+            "-q:v",
+            "2",
             "-disposition:v:0",
             "attached_pic",
         ]);
@@ -157,19 +163,29 @@ fn part_path(out_path: &Path) -> PathBuf {
     PathBuf::from(s)
 }
 
-enum FfmpegError {
-    /// The cover input could not be opened.
-    Cover(anyhow::Error),
-    Other(anyhow::Error),
+static LOG_PREFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[[\w#:/ ]+ @ 0x[0-9a-f]+\]\s*").unwrap());
+
+/// Readable error from ffmpeg's stderr: last lines, without `[ipod @ 0x...]` prefixes,
+/// consecutive duplicates removed.
+fn ffmpeg_error_message(stderr: &str) -> Option<String> {
+    let mut lines: Vec<String> = Vec::new();
+    for l in stderr.lines() {
+        let l = LOG_PREFIX.replace_all(l.trim(), "").trim().to_string();
+        if !l.is_empty() && lines.last() != Some(&l) {
+            lines.push(l);
+        }
+    }
+    let start = lines.len().saturating_sub(STDERR_TAIL);
+    (!lines.is_empty()).then(|| lines[start..].join(" | "))
 }
 
 async fn run_ffmpeg(
     ffmpeg: &str,
     args: &[String],
     duration_ms: Option<u64>,
-    cover_url: Option<&str>,
     progress: &(impl Fn(f32) + Send),
-) -> std::result::Result<(), FfmpegError> {
+) -> Result<()> {
     let mut child = Command::new(ffmpeg)
         .args(args)
         .stdin(Stdio::null())
@@ -177,8 +193,7 @@ async fn run_ffmpeg(
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .with_context(|| format!("could not start ffmpeg ({ffmpeg})"))
-        .map_err(FfmpegError::Other)?;
+        .with_context(|| format!("could not start ffmpeg ({ffmpeg})"))?;
 
     let stdout = child.stdout.take().expect("stdout piped");
     let mut stderr = child.stderr.take().expect("stderr piped");
@@ -196,42 +211,16 @@ async fn run_ffmpeg(
         }
     }
 
-    let status = child
-        .wait()
-        .await
-        .context("waiting for ffmpeg failed")
-        .map_err(FfmpegError::Other)?;
+    let status = child.wait().await.context("waiting for ffmpeg failed")?;
     let err_text = stderr_task.await.unwrap_or_default();
     if status.success() {
         return Ok(());
     }
-
-    let tail: VecDeque<&str> = err_text
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .fold(VecDeque::new(), |mut q, l| {
-            if q.len() == STDERR_TAIL {
-                q.pop_front();
-            }
-            q.push_back(l);
-            q
-        });
-    let msg = if tail.is_empty() {
-        format!("ffmpeg exited with {status}")
-    } else {
-        format!(
-            "ffmpeg exited with {status}: {}",
-            tail.into_iter().collect::<Vec<_>>().join(" | ")
-        )
-    };
-    let cover_failed = cover_url.is_some_and(|c| err_text.contains("in#1") || err_text.contains(c));
-    let err = anyhow::anyhow!(msg);
-    Err(if cover_failed {
-        FfmpegError::Cover(err)
-    } else {
-        FfmpegError::Other(err)
-    })
+    // Put ffmpeg's own message first: the UI only has room for one line.
+    match ffmpeg_error_message(&err_text) {
+        Some(msg) => bail!("{msg} (ffmpeg exited with {status})"),
+        None => bail!("ffmpeg exited with {status}"),
+    }
 }
 
 /// Run ffmpeg, report progress, return the final file path. Writes to a `.part` temp file first.
@@ -256,21 +245,13 @@ pub async fn run(
     }
     let result = loop {
         let args = build_ffmpeg_args(&spec_now, &part);
-        match run_ffmpeg(
-            ffmpeg,
-            &args,
-            spec_now.duration_ms,
-            spec_now.cover_url.as_deref(),
-            &progress,
-        )
-        .await
-        {
+        match run_ffmpeg(ffmpeg, &args, spec_now.duration_ms, &progress).await {
             Ok(()) => break Ok(()),
-            Err(FfmpegError::Cover(_)) if spec_now.cover_url.is_some() => {
-                // Broken artwork must not fail the download: retry once without it.
-                spec_now.cover_url = None;
-            }
-            Err(FfmpegError::Cover(e) | FfmpegError::Other(e)) => break Err(e),
+            // Artwork is optional and the most fragile input (404, odd formats, missing
+            // dimensions...), so any failure with a cover gets one retry without it.
+            // If the audio itself is broken, the second attempt reports that.
+            Err(_) if spec_now.cover_url.is_some() => spec_now.cover_url = None,
+            Err(e) => break Err(e),
         }
     };
     if let Err(e) = result {
@@ -341,7 +322,9 @@ mod tests {
         ));
         assert!(has_seq(
             &a,
-            &["-map", "0:a:0", "-map", "1:v:0", "-c:v", "copy"]
+            &[
+                "-map", "0:a:0", "-map", "1:v:0", "-c:v", "mjpeg", "-q:v", "2"
+            ]
         ));
         assert!(has_seq(&a, &["-disposition:v:0", "attached_pic"]));
         assert!(has_seq(&a, &["-c:a", "copy", "-bsf:a", "aac_adtstoasc"]));
@@ -426,6 +409,18 @@ mod tests {
         assert_eq!(unique_path(&stem, "mp3"), dir.join("A - B (2).mp3"));
     }
 
+    #[test]
+    fn error_message_cleanup() {
+        let stderr = "[ipod @ 0x55bbf7406e40] dimensions not set\n\
+            [out#0/ipod @ 0x55bbf7406e41] Could not write header (incorrect codec parameters ?): Invalid argument\n\
+            [out#0/ipod @ 0x55bbf7406e41] Could not write header (incorrect codec parameters ?): Invalid argument\n\n";
+        assert_eq!(
+            ffmpeg_error_message(stderr).unwrap(),
+            "dimensions not set | Could not write header (incorrect codec parameters ?): Invalid argument"
+        );
+        assert_eq!(ffmpeg_error_message(" \n"), None);
+    }
+
     /// End-to-end with real ffmpeg on locally generated input (no network).
     #[tokio::test]
     #[ignore = "needs ffmpeg"]
@@ -435,6 +430,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("in.m4a");
         let cover = dir.join("cover.jpg");
+        let cover_webp = dir.join("cover.webp");
         for args in [
             vec![
                 "-f",
@@ -453,6 +449,17 @@ mod tests {
                 "-frames:v",
                 "1",
                 cover.to_str().unwrap(),
+            ],
+            vec![
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=s=64x64",
+                "-frames:v",
+                "1",
+                "-c:v",
+                "libwebp",
+                cover_webp.to_str().unwrap(),
             ],
         ] {
             let st = std::process::Command::new("ffmpeg")
@@ -488,6 +495,24 @@ mod tests {
         assert!(!part_path(&p).exists());
         assert_eq!(*seen.lock().unwrap().last().unwrap(), 1.0);
 
+        // A WebP cover (rejected by the mp4 muxer as-is) is converted to JPEG and embedded.
+        s.cover_url = Some(cover_webp.to_string_lossy().into_owned());
+        s.out_stem = dir.join("out/webp");
+        let pw = run(&s, "ffmpeg", |_| {}).await.unwrap();
+        let probe = std::process::Command::new("ffprobe")
+            .args(["-v", "error", "-select_streams", "v", "-show_entries"])
+            .args([
+                "stream=codec_name:stream_disposition=attached_pic",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&pw)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&probe.stdout).trim(), "mjpeg,1");
+        s.cover_url = Some(cover.to_string_lossy().into_owned());
+        s.out_stem = dir.join("out/Artist - Title");
+
         // Same name again -> " (1)"; broken cover -> retried without cover; convert to mp3.
         let p2 = run(&s, "ffmpeg", |_| {}).await.unwrap();
         assert_eq!(p2, dir.join("out/Artist - Title (1).m4a"));
@@ -499,7 +524,9 @@ mod tests {
         // Broken input -> error with ffmpeg's message, no leftovers.
         s.input_url = dir.join("nope.m4a").to_string_lossy().into_owned();
         let err = run(&s, "ffmpeg", |_| {}).await.unwrap_err();
-        assert!(format!("{err:#}").contains("ffmpeg exited"), "{err:#}");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("ffmpeg exited"), "{msg}");
+        assert!(msg.contains("No such file"), "{msg}");
         assert!(!dir.join("out/Artist - Title (1).mp3.part").exists());
     }
 }
