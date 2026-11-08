@@ -1,0 +1,226 @@
+{
+  "artwork_url": null,
+  "created_at": "2024-05-01T00:00:00Z",
+  "duration": 800000,
+  "id": 1800000001,
+  "kind": "playlist",
+  "permalink": "summer-set",
+  "permalink_url": "https://soundcloud.com/some-artist/sets/summer-set",
+  "public": true,
+  "secret_token": null,
+  "set_type": "album",
+  "title": "Summer Set",
+  "track_count": 4,
+  "user": {
+    "avatar_url": "https://i1.sndcdn.com/avatars-000987654-xyz-large.jpg",
+    "first_name": "",
+    "full_name": "Some Artist",
+    "id": 900001,
+    "kind": "user",
+    "last_modified": "2024-01-01T00:00:00Z",
+    "permalink": "some-artist",
+    "permalink_url": "https://soundcloud.com/some-artist",
+    "uri": "https://api.soundcloud.com/users/900001",
+    "urn": "soundcloud:users:900001",
+    "username": "Some Artist",
+    "verified": false
+  },
+  "tracks": [
+    {
+      "artwork_url": "https://i1.sndcdn.com/artworks-000123456789-abcdef-large.jpg",
+      "caption": null,
+      "commentable": true,
+      "comment_count": 12,
+      "created_at": "2024-03-01T12:00:00Z",
+      "description": "Test track",
+      "downloadable": false,
+      "duration": 215040,
+      "full_duration": 215040,
+      "embeddable_by": "all",
+      "genre": "Electronic",
+      "id": 1700000001,
+      "kind": "track",
+      "label_name": null,
+      "license": "all-rights-reserved",
+      "monetization_model": "AD_SUPPORTED",
+      "permalink": "night-drive",
+      "permalink_url": "https://soundcloud.com/some-artist/night-drive",
+      "playback_count": 4242,
+      "policy": "MONETIZE",
+      "public": true,
+      "secret_token": null,
+      "sharing": "public",
+      "state": "finished",
+      "streamable": true,
+      "title": "Night Drive",
+      "track_authorization": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJnZW8iOiJERSJ9.abc123",
+      "uri": "https://api.soundcloud.com/tracks/1700000001",
+      "urn": "soundcloud:tracks:1700000001",
+      "user_id": 900001,
+      "media": {
+        "transcodings": [
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/aaaa-1111/stream/hls",
+            "preset": "aac_160k",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "hls",
+              "mime_type": "audio/mp4; codecs=\"mp4a.40.2\""
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": false
+          },
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/bbbb-2222/stream/hls",
+            "preset": "abr_sq",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "ctr-encrypted-hls",
+              "mime_type": "audio/mp4; codecs=\"mp4a.40.2\""
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": false
+          },
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/cccc-3333/stream/hls",
+            "preset": "opus_0_0",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "hls",
+              "mime_type": "audio/ogg; codecs=\"opus\""
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": true
+          },
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/dddd-4444/stream/hls",
+            "preset": "mp3_1_0",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "hls",
+              "mime_type": "audio/mpeg"
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": true
+          },
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/eeee-5555/stream/progressive",
+            "preset": "mp3_1_0",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "progressive",
+              "mime_type": "audio/mpeg"
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": true
+          }
+        ]
+      },
+      "user": {
+        "avatar_url": "https://i1.sndcdn.com/avatars-000987654-xyz-large.jpg",
+        "first_name": "",
+        "full_name": "Some Artist",
+        "id": 900001,
+        "kind": "user",
+        "last_modified": "2024-01-01T00:00:00Z",
+        "permalink": "some-artist",
+        "permalink_url": "https://soundcloud.com/some-artist",
+        "uri": "https://api.soundcloud.com/users/900001",
+        "urn": "soundcloud:users:900001",
+        "username": "Some Artist",
+        "verified": false
+      }
+    },
+    {
+      "artwork_url": null,
+      "caption": null,
+      "commentable": true,
+      "comment_count": 12,
+      "created_at": "2024-03-01T12:00:00Z",
+      "description": "Test track",
+      "downloadable": false,
+      "duration": 215040,
+      "full_duration": 215040,
+      "embeddable_by": "all",
+      "genre": "Electronic",
+      "id": 1700000004,
+      "kind": "track",
+      "label_name": null,
+      "license": "all-rights-reserved",
+      "monetization_model": "AD_SUPPORTED",
+      "permalink": "night-drive",
+      "permalink_url": "https://soundcloud.com/some-artist/second-song",
+      "playback_count": 4242,
+      "policy": "MONETIZE",
+      "public": true,
+      "secret_token": null,
+      "sharing": "public",
+      "state": "finished",
+      "streamable": true,
+      "title": "Second Song",
+      "track_authorization": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJnZW8iOiJERSJ9.abc123",
+      "uri": "https://api.soundcloud.com/tracks/1700000001",
+      "urn": "soundcloud:tracks:1700000001",
+      "user_id": 900001,
+      "media": {
+        "transcodings": [
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/aaaa-1111/stream/hls",
+            "preset": "aac_160k",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "hls",
+              "mime_type": "audio/mp4; codecs=\"mp4a.40.2\""
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": false
+          },
+          {
+            "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000001/eeee-5555/stream/progressive",
+            "preset": "mp3_1_0",
+            "duration": 215040,
+            "snipped": false,
+            "format": {
+              "protocol": "progressive",
+              "mime_type": "audio/mpeg"
+            },
+            "quality": "sq",
+            "is_legacy_transcoding": true
+          }
+        ]
+      },
+      "user": {
+        "avatar_url": "https://i1.sndcdn.com/avatars-000987654-xyz-large.jpg",
+        "first_name": "",
+        "full_name": "Some Artist",
+        "id": 900001,
+        "kind": "user",
+        "last_modified": "2024-01-01T00:00:00Z",
+        "permalink": "some-artist",
+        "permalink_url": "https://soundcloud.com/some-artist",
+        "uri": "https://api.soundcloud.com/users/900001",
+        "urn": "soundcloud:users:900001",
+        "username": "Some Artist",
+        "verified": false
+      }
+    },
+    {
+      "id": 1700000005,
+      "kind": "track",
+      "monetization_model": "AD_SUPPORTED",
+      "policy": "ALLOW"
+    },
+    {
+      "id": 1700000002,
+      "kind": "track",
+      "monetization_model": "SUB_HIGH_TIER",
+      "policy": "SNIP"
+    }
+  ]
+}

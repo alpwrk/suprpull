@@ -1,0 +1,20 @@
+{
+  "artwork_url": "https://i1.sndcdn.com/artworks-000222-bbb-large.jpg",
+  "duration": 201000,
+  "full_duration": 201000,
+  "id": 1700000003,
+  "kind": "track",
+  "permalink_url": "https://soundcloud.com/geo-artist/blocked-song",
+  "policy": "BLOCK",
+  "streamable": false,
+  "title": "Blocked Song",
+  "track_authorization": "eyJ0eXAiOiJKV1QifQ.block.sig",
+  "media": { "transcodings": [] },
+  "user": {
+    "avatar_url": null,
+    "id": 900003,
+    "kind": "user",
+    "permalink_url": "https://soundcloud.com/geo-artist",
+    "username": "Geo Artist"
+  }
+}

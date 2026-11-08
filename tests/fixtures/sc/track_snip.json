@@ -1,0 +1,40 @@
+{
+  "artwork_url": null,
+  "duration": 30000,
+  "full_duration": 187000,
+  "id": 1700000002,
+  "kind": "track",
+  "monetization_model": "SUB_HIGH_TIER",
+  "permalink_url": "https://soundcloud.com/major-label/hit-single",
+  "policy": "SNIP",
+  "streamable": true,
+  "title": "Hit Single",
+  "track_authorization": "eyJ0eXAiOiJKV1QifQ.snip.sig",
+  "media": {
+    "transcodings": [
+      {
+        "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000002/ffff-6666/preview/hls",
+        "preset": "mp3_0_0",
+        "duration": 30000,
+        "snipped": true,
+        "format": { "protocol": "hls", "mime_type": "audio/mpeg" },
+        "quality": "sq"
+      },
+      {
+        "url": "https://api-v2.soundcloud.com/media/soundcloud:tracks:1700000002/gggg-7777/preview/progressive",
+        "preset": "mp3_0_0",
+        "duration": 30000,
+        "snipped": true,
+        "format": { "protocol": "progressive", "mime_type": "audio/mpeg" },
+        "quality": "sq"
+      }
+    ]
+  },
+  "user": {
+    "avatar_url": "https://i1.sndcdn.com/avatars-000111-aaa-large.jpg",
+    "id": 900002,
+    "kind": "user",
+    "permalink_url": "https://soundcloud.com/major-label",
+    "username": "Major Label"
+  }
+}
