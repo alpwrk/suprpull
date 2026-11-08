@@ -214,6 +214,11 @@ impl App {
                     self.input.clear();
                 }
             }
+            // Links are pasted, so a bare `q` on an empty input means "quit";
+            // once something is typed, `q` is just a character.
+            KeyCode::Char('q') if !ctrl && !alt && self.input.is_empty() => {
+                self.should_quit = true;
+            }
             KeyCode::Char('u') if ctrl => self.input.clear(),
             KeyCode::Char('w') if ctrl => self.input.delete_word(),
             KeyCode::Char('a') if ctrl => self.input.home(),
@@ -560,7 +565,7 @@ pub(crate) mod tests {
     #[test]
     fn typing_and_enter_emits_resolve() {
         let mut app = App::new(cfg(), vec![]);
-        type_str(&mut app, "q12 https://sc/x");
+        type_str(&mut app, "1q2https://sc/x");
         assert!(!app.should_quit, "q while typing must not quit");
         assert_eq!(app.tab, Tab::Queue, "2 while typing must not switch tabs");
         press(&mut app, KeyCode::Home);
@@ -603,6 +608,15 @@ pub(crate) mod tests {
         press(&mut app, KeyCode::Tab);
         press(&mut app, KeyCode::Char('q'));
         assert!(app.should_quit);
+
+        // `q` on the empty, focused input quits; inside text it is typed.
+        let mut app = App::new(cfg(), vec![]);
+        press(&mut app, KeyCode::Char('q'));
+        assert!(app.should_quit);
+        let mut app = App::new(cfg(), vec![]);
+        type_str(&mut app, "aq");
+        assert!(!app.should_quit);
+        assert_eq!(app.input.value(), "aq");
 
         let mut app = App::new(cfg(), vec![]);
         type_str(&mut app, "abc");
