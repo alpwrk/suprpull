@@ -2,6 +2,12 @@
 name = "suprpull"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.89"
+description = "Terminal UI for downloading SoundCloud tracks and sets with full metadata tagging"
+repository = "https://github.com/alpwrk/suprpull"
+readme = "README.md"
+keywords = ["soundcloud", "downloader", "tui", "ffmpeg", "musicbrainz"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
 anyhow = "1.0.104"

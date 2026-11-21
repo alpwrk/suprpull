@@ -34,7 +34,7 @@ stays the album and keeps its cover, so all files belong together.
 
 ## Requirements
 
-- Rust (edition 2024)
+- Rust 1.89 or newer
 - `ffmpeg` in `$PATH` (or set `ffmpeg_path` in the config)
 
 ## Install

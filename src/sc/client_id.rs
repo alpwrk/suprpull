@@ -162,10 +162,10 @@ mod tests {
     #[test]
     fn client_id_object_literal() {
         let js =
-            r#"e.exports={env:"production",client_id:"39AVoiZVrdvJEMFLH8T0c5WGshQaAPRJ",api:"x"}"#;
+            r#"e.exports={env:"production",client_id:"Xy7TestClientId0000000000000000a",api:"x"}"#;
         assert_eq!(
             extract_client_id(js).as_deref(),
-            Some("39AVoiZVrdvJEMFLH8T0c5WGshQaAPRJ")
+            Some("Xy7TestClientId0000000000000000a")
         );
     }
 

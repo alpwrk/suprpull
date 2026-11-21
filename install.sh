@@ -11,7 +11,7 @@ set -eu
 NAME=suprpull
 REPO=alpwrk/suprpull
 REF=${SUPRPULL_REF:-main}
-MIN_RUST=1.85
+MIN_RUST=1.89
 BIN_DIR="$HOME/.local/bin"
 
 info() { printf '\033[1;34m::\033[0m %s\n' "$*"; }
