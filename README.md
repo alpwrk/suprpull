@@ -37,11 +37,24 @@ stays the album and keeps its cover, so all files belong together.
 - Rust (edition 2024)
 - `ffmpeg` in `$PATH` (or set `ffmpeg_path` in the config)
 
-## Usage
+## Install
+
+Builds from source and installs to `~/.local/bin` (no root needed):
 
 ```sh
-cargo run --release
+curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh
 ```
+
+From a checkout, `./install.sh` builds that checkout instead. To remove the binary
+(config and history are kept):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh -s -- --uninstall
+```
+
+## Usage
+
+Run `suprpull` (or `cargo run --release` from the checkout).
 
 Paste a link and press Enter, then choose a format in the popup.
 
