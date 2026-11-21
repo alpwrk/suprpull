@@ -87,3 +87,7 @@ Config keys: `output_dir`, `default_format` (`best`, `aac`, `opus`, `mp3`, `conv
 
 This uses SoundCloud's unofficial web API, which is against SoundCloud's terms of use.
 Use it only for personal use and for content you are allowed to download.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
