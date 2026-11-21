@@ -1,4 +1,4 @@
-//! Scrapes the public web client_id from soundcloud.com's JS bundles (like cobalt does)
+//! Scrapes the public web client_id from soundcloud.com's JS bundles
 //! and caches it in `~/.cache/suprpull/client_id.json` keyed by `__sc_version`.
 
 use std::path::PathBuf;

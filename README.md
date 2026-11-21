@@ -1,7 +1,6 @@
 # suprpull
 
-A terminal UI for downloading SoundCloud tracks and sets, inspired by how
-[cobalt](https://github.com/imputnet/cobalt) talks to SoundCloud.
+A terminal UI for downloading SoundCloud tracks and sets.
 
 ## Install
 
