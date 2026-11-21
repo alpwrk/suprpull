@@ -3,6 +3,56 @@
 A terminal UI for downloading SoundCloud tracks and sets, inspired by how
 [cobalt](https://github.com/imputnet/cobalt) talks to SoundCloud.
 
+## Install
+
+You need Rust 1.89 or newer ([rustup.rs](https://rustup.rs)) and `ffmpeg` in `$PATH`
+(or set `ffmpeg_path` in the config). Everything is installed to `~/.local/bin`, no root needed.
+
+### Quick install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh
+```
+
+### From a clone
+
+```sh
+git clone https://github.com/alpwrk/suprpull.git
+cd suprpull
+./install.sh
+```
+
+To update later, run `git pull && ./install.sh` in the clone, or rerun the quick install.
+
+If `~/.local/bin` is not in your `$PATH`, the script says so; add
+`export PATH="$HOME/.local/bin:$PATH"` to your shell profile.
+
+### Uninstall
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh -s -- --uninstall
+```
+
+or `./install.sh --uninstall` in the clone. Config, history and cache are kept.
+
+## Usage
+
+Run `suprpull` (or `cargo run --release` in the clone).
+
+Paste a link and press Enter, then choose a format in the popup.
+
+| Key | Action |
+|---|---|
+| `Enter` | resolve link / confirm format |
+| `Tab` | switch focus between input and list |
+| `1` / `2` (list) or `F1` / `F2` | queue / history tab |
+| `↑` `↓` `j` `k` | move selection |
+| `d` | remove job |
+| `r` | retry failed job |
+| `o` | open folder |
+| `q` (empty input or list) | quit |
+| `Esc` | clear input / close popup |
+
 ## How it works
 
 1. Scrapes the public web `client_id` from soundcloud.com's JS bundles and caches it
@@ -31,44 +81,6 @@ stays the album and keeps its cover, so all files belong together.
 | title, artist, album, album artist, track, date, genre, composer, copyright | ✔ | ✔ | ✔ |
 | cover | ✔ | – | ✔ |
 | label, ISRC, MusicBrainz ids | – | ✔ | ✔ |
-
-## Requirements
-
-- Rust 1.89 or newer
-- `ffmpeg` in `$PATH` (or set `ffmpeg_path` in the config)
-
-## Install
-
-Builds from source and installs to `~/.local/bin` (no root needed):
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh
-```
-
-From a checkout, `./install.sh` builds that checkout instead. To remove the binary
-(config and history are kept):
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/alpwrk/suprpull/main/install.sh | sh -s -- --uninstall
-```
-
-## Usage
-
-Run `suprpull` (or `cargo run --release` from the checkout).
-
-Paste a link and press Enter, then choose a format in the popup.
-
-| Key | Action |
-|---|---|
-| `Enter` | resolve link / confirm format |
-| `Tab` | switch focus between input and list |
-| `1` / `2` (list) or `F1` / `F2` | queue / history tab |
-| `↑` `↓` `j` `k` | move selection |
-| `d` | remove job |
-| `r` | retry failed job |
-| `o` | open folder |
-| `q` (empty input or list) | quit |
-| `Esc` | clear input / close popup |
 
 ## Files
 
